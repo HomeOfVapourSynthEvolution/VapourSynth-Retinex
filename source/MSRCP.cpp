@@ -1,6 +1,4 @@
-#include <vapoursynth\VapourSynth.h>
-#include <vapoursynth\VSHelper.h>
-#include "..\include\MSRCP.h"
+#include "MSRCP.h"
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -99,7 +97,7 @@ void VS_CC MSRCPCreate(const VSMap *in, VSMap *out, void *userData, VSCore *core
             if (d.sigma[i] < 0)
             {
                 delete data;
-                vsapi->setError(out, "retinex.MSRCP: Invalid \"sigma\" specified, must be non-negative float number");
+                vsapi->setError(out, "retinex.MSRCP: Invalid \"sigma\" assigned, must be non-negative float number");
                 return;
             }
         }
@@ -129,7 +127,7 @@ void VS_CC MSRCPCreate(const VSMap *in, VSMap *out, void *userData, VSCore *core
     if (d.lower_thr < 0)
     {
         delete data;
-        vsapi->setError(out, "retinex.MSRCP: Invalid \"lower_thr\" specified, must be non-negative float number");
+        vsapi->setError(out, "retinex.MSRCP: Invalid \"lower_thr\" assigned, must be float number ranges in [0, 1)");
         return;
     }
 
@@ -139,7 +137,14 @@ void VS_CC MSRCPCreate(const VSMap *in, VSMap *out, void *userData, VSCore *core
     if (d.upper_thr < 0)
     {
         delete data;
-        vsapi->setError(out, "retinex.MSRCP: Invalid \"upper_thr\" specified, must be non-negative float number");
+        vsapi->setError(out, "retinex.MSRCP: Invalid \"upper_thr\" assigned, must be float number ranges in [0, 1)");
+        return;
+    }
+
+    if (d.lower_thr + d.upper_thr >= 1)
+    {
+        delete data;
+        vsapi->setError(out, "retinex.MSRCP: Invalid \"lower_thr\" and \"upper_thr\" assigned, the sum of which mustn't equal or exceed 1");
         return;
     }
 

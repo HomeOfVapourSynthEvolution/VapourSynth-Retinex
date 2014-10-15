@@ -5,10 +5,16 @@
 #include <cmath>
 
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
 const int HD_Width_U = 2048;
 const int HD_Height_U = 1536;
 const int SD_Width_U = 1024;
 const int SD_Height_U = 576;
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 enum class ResLevel {
@@ -60,11 +66,14 @@ enum class ColorMatrix {
 };
 
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
 // Parameter functions
 template < typename T >
-void ColorPrim_Parameter(ColorPrim ColorPrim, T &green_x, T &green_y, T &blue_x, T &blue_y, T &red_x, T &red_y, T &white_x, T &white_y)
+void ColorPrim_Parameter(ColorPrim _ColorPrim, T &green_x, T &green_y, T &blue_x, T &blue_y, T &red_x, T &red_y, T &white_x, T &white_y)
 {
-    switch (ColorPrim)
+    switch (_ColorPrim)
     {
     case ColorPrim::bt709:
         green_x = 0.300;
@@ -150,9 +159,9 @@ void ColorPrim_Parameter(ColorPrim ColorPrim, T &green_x, T &green_y, T &blue_x,
 }
 
 template < typename T >
-void TransferChar_Parameter(TransferChar TransferChar, T &k0, T &phi, T &alpha, T &power, T &div)
+void TransferChar_Parameter(TransferChar _TransferChar, T &k0, T &phi, T &alpha, T &power, T &div)
 {
-    switch (TransferChar)
+    switch (_TransferChar)
     {
     case TransferChar::bt709:
         k0 = 0.018;
@@ -195,7 +204,7 @@ void TransferChar_Parameter(TransferChar TransferChar, T &k0, T &phi, T &alpha, 
         div = 2;
         break;
     case TransferChar::log316:
-        k0 = std::sqrt(10.) / 1000.;
+        k0 = sqrt(10.) / 1000.;
         div = 2.5;
         break;
     case TransferChar::iec61966_2_4:
@@ -238,9 +247,9 @@ void TransferChar_Parameter(TransferChar TransferChar, T &k0, T &phi, T &alpha, 
 }
 
 template < typename T >
-void ColorMatrix_Parameter(ColorMatrix ColorMatrix, T &Kr, T &Kg, T &Kb)
+void ColorMatrix_Parameter(ColorMatrix _ColorMatrix, T &Kr, T &Kg, T &Kb)
 {
-    switch (ColorMatrix)
+    switch (_ColorMatrix)
     {
     case ColorMatrix::GBR:
         Kr = 0;
@@ -296,97 +305,94 @@ void ColorMatrix_Parameter(ColorMatrix ColorMatrix, T &Kr, T &Kg, T &Kb)
 }
 
 template < typename T >
-void TransferChar_Parameter(TransferChar TransferChar, T &k0, T &phi, T &alpha, T &power)
+void TransferChar_Parameter(TransferChar _TransferChar, T &k0, T &phi, T &alpha, T &power)
 {
     T temp;
-    TransferChar_Parameter(TransferChar, k0, phi, alpha, power, temp);
+    TransferChar_Parameter(_TransferChar, k0, phi, alpha, power, temp);
 }
 
 template < typename T >
-void TransferChar_Parameter(TransferChar TransferChar, T &k0, T &div)
+void TransferChar_Parameter(TransferChar _TransferChar, T &k0, T &div)
 {
     T temp;
-    TransferChar_Parameter(TransferChar, k0, temp, temp, temp, div);
+    TransferChar_Parameter(_TransferChar, k0, temp, temp, temp, div);
 }
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 // Default functions
 inline ResLevel ResLevel_Default(int Width, int Height)
 {
-    return
-        Width > HD_Width_U || Height > HD_Height_U ? ResLevel::UHD :
-        Width > SD_Width_U || Height > SD_Height_U ? ResLevel::HD : ResLevel::SD;
+    if (Width > HD_Width_U || Height > HD_Height_U) return ResLevel::UHD;
+    if (Width > SD_Width_U || Height > SD_Height_U) return ResLevel::HD;
+    return ResLevel::SD;
 }
 
 inline ColorPrim ColorPrim_Default(int Width, int Height, bool RGB)
 {
-    ResLevel Res_Level = ResLevel_Default(Width, Height);
+    ResLevel _ResLevel = ResLevel_Default(Width, Height);
 
-    if (RGB)
-    {
-        return ColorPrim::bt709;
-    }
-    else
-    {
-        return
-            Res_Level == ResLevel::UHD ? ColorPrim::bt2020 :
-            Res_Level == ResLevel::HD ? ColorPrim::bt709 :
-            Res_Level == ResLevel::SD ? ColorPrim::smpte170m : ColorPrim::bt709;
-    }
+    if (RGB) return ColorPrim::bt709;
+    if (_ResLevel == ResLevel::UHD) return ColorPrim::bt2020;
+    if (_ResLevel == ResLevel::HD) return ColorPrim::bt709;
+    if (_ResLevel == ResLevel::SD) return ColorPrim::smpte170m;
+    return ColorPrim::bt709;
 }
 
 inline TransferChar TransferChar_Default(int Width, int Height, bool RGB)
 {
-    ResLevel Res_Level = ResLevel_Default(Width, Height);
+    ResLevel _ResLevel = ResLevel_Default(Width, Height);
 
-    if (RGB)
-    {
-        return TransferChar::iec61966_2_1;
-    }
-    else
-    {
-        return
-            Res_Level == ResLevel::UHD ? TransferChar::bt2020_12 :
-            Res_Level == ResLevel::HD ? TransferChar::bt709 :
-            Res_Level == ResLevel::SD ? TransferChar::smpte170m : TransferChar::bt709;
-    }
+    if (RGB) return TransferChar::iec61966_2_1;
+    if (_ResLevel == ResLevel::UHD) return TransferChar::bt2020_12;
+    if (_ResLevel == ResLevel::HD) return TransferChar::bt709;
+    if (_ResLevel == ResLevel::SD) return TransferChar::smpte170m;
+    return TransferChar::bt709;
 }
 
 inline ColorMatrix ColorMatrix_Default(int Width, int Height)
 {
-    ResLevel Res_Level = ResLevel_Default(Width, Height);
+    ResLevel _ResLevel = ResLevel_Default(Width, Height);
 
-    return
-        Res_Level == ResLevel::UHD ? ColorMatrix::bt2020nc :
-        Res_Level == ResLevel::HD ? ColorMatrix::bt709 :
-        Res_Level == ResLevel::SD ? ColorMatrix::smpte170m : ColorMatrix::bt709;
+    if (_ResLevel == ResLevel::UHD) return ColorMatrix::bt2020nc;
+    if (_ResLevel == ResLevel::HD) return ColorMatrix::bt709;
+    if (_ResLevel == ResLevel::SD) return ColorMatrix::smpte170m;
+    return ColorMatrix::bt709;
 }
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 // Conversion functions
 template < typename T >
 T TransferChar_gamma2linear(T data, T k0, T phi, T alpha, T power)
 {
-    return data < k0*phi ? data / phi : std::pow((data + alpha) / (1 + alpha), 1 / power);
+    return data < k0*phi ? data / phi : pow((data + alpha) / (1 + alpha), 1 / power);
 }
 
 template < typename T >
 T TransferChar_linear2gamma(T data, T k0, T phi, T alpha, T power)
 {
-    return data < k0 ? phi*data : (1 + alpha)*std::pow(data, power) - alpha;
+    return data < k0 ? phi*data : (1 + alpha)*pow(data, power) - alpha;
 }
 
 template < typename T >
 T TransferChar_gamma2linear(T data, T k0, T div)
 {
-    return data == 0 ? 0 : std::pow(10, (data - 1)*div);
+    return data == 0 ? 0 : pow(10, (data - 1)*div);
 }
 
 template < typename T >
 T TransferChar_linear2gamma(T data, T k0, T div)
 {
-    return data < k0 ? 0 : 1 + std::log10(data) / div;
+    return data < k0 ? 0 : 1 + log10(data) / div;
 }
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 #endif

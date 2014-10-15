@@ -1,8 +1,7 @@
 #include <cmath>
-#include <vapoursynth\VSHelper.h>
-#include "..\include\Helper.h"
-#include "..\include\Gaussian.h"
-#include "..\include\MSR.h"
+#include "Helper.h"
+#include "Gaussian.h"
+#include "MSR.h"
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -88,7 +87,7 @@ int Retinex_MSR(FLType *odata, const FLType *idata, const MSRData &d, int height
 
     if (d.lower_thr > 0 || d.upper_thr > 0)
     {
-        size_t h, HistBins = d.HistBins;
+        int h, HistBins = d.HistBins;
         int Count, MaxCount;
 
         int *Histogram = vs_aligned_malloc<int>(sizeof(int)*HistBins, Alignment);
@@ -137,11 +136,23 @@ int Retinex_MSR(FLType *odata, const FLType *idata, const MSRData &d, int height
     gain = (CeilFL - FloorFL) / (max - min);
     offset = -min * gain + FloorFL;
 
-    for (j = 0; j < height; j++)
+    if (d.lower_thr > 0 || d.upper_thr > 0)
     {
-        i = stride * j;
-        for (upper = i + width; i < upper; i++)
-            odata[i] = odata[i] * gain + offset;
+        for (j = 0; j < height; j++)
+        {
+            i = stride * j;
+            for (upper = i + width; i < upper; i++)
+                odata[i] = Clip(odata[i] * gain + offset, FloorFL, CeilFL);
+        }
+    }
+    else
+    {
+        for (j = 0; j < height; j++)
+        {
+            i = stride * j;
+            for (upper = i + width; i < upper; i++)
+                odata[i] = odata[i] * gain + offset;
+        }
     }
 
     return 0;

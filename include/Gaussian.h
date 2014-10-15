@@ -10,7 +10,7 @@
 
 
 const double Pi = 3.1415926535897932384626433832795;
-const double sqrt_2Pi = std::sqrt(2 * Pi);
+const double sqrt_2Pi = sqrt(2 * Pi);
 
 const double sigmaSMul = 2.;
 const double sigmaRMul = sizeof(FLType) < 8 ? 8. : 32.; // 8. when FLType is float, 32. when FLType is double
@@ -24,23 +24,23 @@ void Recursive_Gaussian2D_Horizontal(FLType * output, const FLType * input, int 
 inline double Gaussian_Function(double x, double sigma)
 {
     x /= sigma;
-    return std::exp(x*x / -2);
+    return exp(x*x / -2);
 }
 
 inline double Gaussian_Function_sqr_x(double sqr_x, double sigma)
 {
-    return std::exp(sqr_x / (sigma*sigma*-2));
+    return exp(sqr_x / (sigma*sigma*-2));
 }
 
 inline double Normalized_Gaussian_Function(double x, double sigma)
 {
     x /= sigma;
-    return std::exp(x*x / -2) / (sqrt_2Pi*sigma);
+    return exp(x*x / -2) / (sqrt_2Pi*sigma);
 }
 
 inline double Normalized_Gaussian_Function_sqr_x(double sqr_x, double sigma)
 {
-    return std::exp(sqr_x / (sigma*sigma*-2)) / (sqrt_2Pi*sigma);
+    return exp(sqr_x / (sigma*sigma*-2)) / (sqrt_2Pi*sigma);
 }
 
 

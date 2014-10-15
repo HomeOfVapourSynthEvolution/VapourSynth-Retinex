@@ -2,7 +2,6 @@
 #define MSR_H_
 
 
-#include <vapoursynth\VapourSynth.h>
 #include "Helper.h"
 
 
@@ -24,7 +23,7 @@ public:
 
     int process[3];
 
-    size_t HistBins = 4096;
+    int HistBins = 4096;
 
 public:
     MSRData(const VSAPI *_vsapi = nullptr)

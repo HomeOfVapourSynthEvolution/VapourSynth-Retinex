@@ -1,9 +1,11 @@
-#ifndef NUMERIC_H_
-#define NUMERIC_H_
+#ifndef HELPER_H_
+#define HELPER_H_
 
 
 #include <vector>
-#include <vapoursynth\VSHelper.h>
+#include <cfloat>
+#include <vapoursynth/VapourSynth.h>
+#include <vapoursynth/VSHelper.h>
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -32,6 +34,12 @@ template < typename T >
 T Clip(T input, T Floor, T Ceil)
 {
     return input <= Floor ? Floor : input >= Ceil ? Ceil : input;
+}
+
+template <typename T>
+inline T Abs(T input)
+{
+    return input < 0 ? -input : input;
 }
 
 template <typename T>
