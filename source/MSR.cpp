@@ -60,7 +60,7 @@ int Retinex_MSR(FLType *odata, const FLType *idata, const MSRData &d, int height
     {
         i = stride * j;
         for (upper = i + width; i < upper; i++)
-            odata[i] = std::log(odata[i]) / static_cast<FLType>(scount);
+            odata[i] = log(odata[i]) / static_cast<FLType>(scount);
     }
 
     vs_aligned_free(gauss);
