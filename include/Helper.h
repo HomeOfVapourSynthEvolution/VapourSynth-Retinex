@@ -1,3 +1,22 @@
+/*
+* Retinex filter - VapourSynth plugin
+* Copyright (C) 2014  mawen1250
+*
+* This program is free software: you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+
 #ifndef HELPER_H_
 #define HELPER_H_
 
@@ -64,17 +83,6 @@ int stride_cal(int width)
 
 
 template < typename T >
-T * newbuff(const T * src, int xoffset, int yoffset,
-    int bufheight, int bufwidth, int bufstride, int height, int width, int stride)
-{
-    T * dst = vs_aligned_malloc<T>(sizeof(T)*bufheight*bufstride, Alignment);
-
-    data2buff(dst, src, xoffset, yoffset, bufheight, bufwidth, bufstride, height, width, stride);
-
-    return dst;
-}
-
-template < typename T >
 void data2buff(T * dst, const T * src, int xoffset, int yoffset,
     int bufheight, int bufwidth, int bufstride, int height, int width, int stride)
 {
@@ -106,6 +114,15 @@ void data2buff(T * dst, const T * src, int xoffset, int yoffset,
         dstp = dst + y * bufstride;
         memcpy(dstp, srcp, sizeof(T)*bufwidth);
     }
+}
+
+template < typename T >
+T * newbuff(const T * src, int xoffset, int yoffset,
+    int bufheight, int bufwidth, int bufstride, int height, int width, int stride)
+{
+    T * dst = vs_aligned_malloc<T>(sizeof(T)*bufheight*bufstride, Alignment);
+    data2buff(dst, src, xoffset, yoffset, bufheight, bufwidth, bufstride, height, width, stride);
+    return dst;
 }
 
 template < typename T >
