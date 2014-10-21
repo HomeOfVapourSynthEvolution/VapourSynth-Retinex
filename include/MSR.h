@@ -37,8 +37,8 @@ public:
     std::vector<double> sigma;
     double lower_thr = 0;
     double upper_thr = 0;
-    int fulls = 1;
-    int fulld = fulls;
+    bool fulls = true;
+    bool fulld = fulls;
 
     int process[3];
 
@@ -60,9 +60,9 @@ public:
     void fulls_select()
     {
         if (vi->format->colorFamily == cmGray || vi->format->colorFamily == cmYUV)
-            fulls = 0;
+            fulls = false;
         else if (vi->format->colorFamily == cmRGB || vi->format->colorFamily == cmYCoCg)
-            fulls = 1;
+            fulls = true;
     }
 };
 

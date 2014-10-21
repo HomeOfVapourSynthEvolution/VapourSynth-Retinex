@@ -167,15 +167,23 @@ void VS_CC MSRCPCreate(const VSMap *in, VSMap *out, void *userData, VSCore *core
         return;
     }
 
-    d.fulls = int64ToIntS(vsapi->propGetInt(in, "fulls", 0, &error));
+    d.fulls = vsapi->propGetInt(in, "fulls", 0, &error) == 0 ? false : true;
     if (error)
         d.fulls_select();
 
-    d.fulld = int64ToIntS(vsapi->propGetInt(in, "fulld", 0, &error));
+    d.fulld = vsapi->propGetInt(in, "fulld", 0, &error) == 0 ? false : true;
     if (error)
         d.fulld = d.fulls;
 
-    d.ColorMatrix_select();
+    d.chroma_protect = vsapi->propGetFloat(in, "chroma_protect", 0, &error);
+    if (error)
+        d.chroma_protect = 1.2;
+    if (d.chroma_protect < 1)
+    {
+        delete data;
+        vsapi->setError(out, "retinex.MSRCP: Invalid \"chroma_protect\" assigned, must be float number ranges in [1, +inf)");
+        return;
+    }
 
     // Create filter
     vsapi->createFilter(in, out, "MSRCP", MSRCPInit, MSRCPGetFrame, MSRCPFree, fmParallel, 0, data, core);

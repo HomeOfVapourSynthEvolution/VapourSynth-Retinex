@@ -14,7 +14,7 @@ The Retinex theory and algorithm mainly aims at simulating the color constancy f
 
 The light perceived by visual receptors can be separated into illuminance and reflectance. Retinex estimates the illuminance and derive the reflectance from the light, the filtered result of which is an image represents the reflectance characteristics of the scene, regardless of the illuminance.
 
-Retinex is a very powerful filter in dynamic range compression, contrast enhancement, color constancy, etc.
+Retinex is a very powerful filter in dynamic range compression, contrast enhancement, color constancy, de-fog, etc.
 
 ## MSRCP
 
@@ -28,10 +28,12 @@ As MSRCP preserves chromaticity, it is excellent for dynamic range compression a
 
 This function accept 8-16bit integer Gray/YUV/RGB/YCoCg input. Sub-sampled format is not supported. If you want to process YUV420/YUV422 clip, convert it to YUV444 or RGB first.
 
+For processing in YUV444 and RGB, the filtering results are different. MSR is applied to intesity channel, which is Y for YUV444 input and (R+G+B)/3 for RGB input. Since Y is a weighted average of R, G, B, processing in YUV444 may produce imbalanced chromaticity preservation. Also when chroma_protect is larger than 1 (default 1.2), the saturation of YUV444 processing result will be different from that of RGB processing result.
+
 ### Usage
 
 ```python
-retinex.MSRCP(clip input, float[] sigmaS=[25,80,250], float lower_thr=0, float upper_thr=0, bool fulls, bool fulld=fulls)
+retinex.MSRCP(clip input, float[] sigmaS=[25,80,250], float lower_thr=0, float upper_thr=0, bool fulls, bool fulld=fulls, float chroma_protect=1.2)
 ```
 
 - input:<br />
@@ -58,23 +60,35 @@ retinex.MSRCP(clip input, float[] sigmaS=[25,80,250], float lower_thr=0, float u
     
 - fulld: (Default: fulls)<br />
     Determine the value range of output clip. True means full range/PC range, and False means limited range/TV range.<br />
-    Set different value for fulls and fulld will result in range conversion.<br />
-    When fulls and fulld are the same, it is safe to assign either True or False for any kinds of input clip except YUV. When fulls=False it will automatically determine the Floor and Ceil of input image, which may produce a stronger filter result under some circumstances.
+    Set different value for fulls and fulld will result in range conversion.
+
+- chroma_protect: (Default: 1.2)<br />
+    The base of log function to attenuate chroma adjustment. It could avoid extreme chroma amplifying, while the saturation of the result is changed.<br />
+    Available range is [1, +inf), 1 means no attenuation.<br />
+    It is only available for YUV/YCoCg input.
 
 ### Example
 
-TV range YUV420P8 input, filter in TV range YUV444P16
+TV range YUV420P8 input, filtered in TV range YUV444P16 with chroma protect, output TV range YUV444P16
 
 ```python
 v = core.fmtc.resample(v, csp=vs.YUV444P16)
-v = core.retinex.MSRCP(v)
+v = core.retinex.MSRCP(v, chroma_protect=1.2)
 ```
 
-JPEG image(PC range YUV420P8 with MPEG-1 chroma placement) input, filter in PC range RGB48
+JPEG image(PC range YUV420P8 with MPEG-1 chroma placement) input, filtered in PC range YUV444P16 without chroma protect, output PC range RGB48
 
 ```python
 i = core.lsmas.LWLibavSource(r'Image.jpg')
 i = core.fmtc.resample(i, csp=vs.YUV444P16, fulls=True, cplace="MPEG1")
+i = core.retinex.MSRCP(i, fulls=True, chroma_protect=1)
 i = core.fmtc.matrix(i, mat="601", fulls=True, csp=vs.RGB48)
+```
+
+PNG image(PC range RGB24) input, filtered in PC range RGB48, output PC range RGB48
+
+```python
+i = core.lsmas.LWLibavSource(r'Image.png')
+i = core.fmtc.bitdepth(i, bits=16)
 i = core.retinex.MSRCP(i)
 ```

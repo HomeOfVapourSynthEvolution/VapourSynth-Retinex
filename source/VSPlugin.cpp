@@ -29,7 +29,7 @@ VS_EXTERNAL_API(void) VapourSynthPluginInit(VSConfigPlugin configFunc, VSRegiste
         "Implementation of Retinex algorithm for VapourSynth.",
         VAPOURSYNTH_API_VERSION, 1, plugin);
 
-    registerFunc("MSRCP", "input:clip;sigma:float[]:opt;lower_thr:float:opt;upper_thr:float:opt;fulls:int:opt;fulld:int:opt", MSRCPCreate, nullptr, plugin);
+    registerFunc("MSRCP", "input:clip;sigma:float[]:opt;lower_thr:float:opt;upper_thr:float:opt;fulls:int:opt;fulld:int:opt;chroma_protect:float:opt", MSRCPCreate, nullptr, plugin);
 }
 
 

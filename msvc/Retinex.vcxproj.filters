@@ -24,9 +24,6 @@
     <ClInclude Include="..\include\Helper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\Specification.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\include\MSR.h">
       <Filter>Header Files</Filter>
     </ClInclude>

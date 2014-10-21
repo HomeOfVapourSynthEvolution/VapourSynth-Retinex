@@ -22,7 +22,6 @@
 
 
 #include "Helper.h"
-#include "Specification.h"
 #include "MSR.h"
 
 
@@ -33,19 +32,13 @@ class MSRCPData
     : public MSRData
 {
 public:
-    ColorMatrix ColorMatrix_ = ColorMatrix::Unspecified;
+    double chroma_protect = 1.2;
 
 public:
     MSRCPData(const VSAPI *_vsapi = nullptr)
         : MSRData(_vsapi) {}
 
     ~MSRCPData() {}
-
-    void ColorMatrix_select()
-    {
-        if (ColorMatrix_ == ColorMatrix::Unspecified)
-            ColorMatrix_ = ColorMatrix_Default(vi->width, vi->height);
-    }
 };
 
 
@@ -71,14 +64,14 @@ void Retinex_MSRCP(VSFrameRef * dst, const VSFrameRef * src, const VSAPI * vsapi
     int sNeutral = 128 << (bps - 8);
     T sCeil = (1 << bps) - 1;
     //T sCeilC = (1 << bps) - 1;
-    T sRange = sCeil - sFloor;
+    T sRange = d.fulls ? (1 << bps) - 1 : 219 << (bps - 8);
     T sRangeC = d.fulls ? (1 << bps) - 1 : 224 << (bps - 8);
     T dFloor = d.fulld ? 0 : 16 << (bps - 8);
     //T dFloorC = d.fulld ? 0 : 16 << (bps - 8);
     int dNeutral = 128 << (bps - 8);
     T dCeil = d.fulld ? (1 << bps) - 1 : 235 << (bps - 8);
     //T dCeilC = d.fulld ? (1 << bps) - 1 : 240 << (bps - 8);
-    T dRange = dCeil - dFloor;
+    T dRange = d.fulld ? (1 << bps) - 1 : 219 << (bps - 8);
     T dRangeC = d.fulld ? (1 << bps) - 1 : 224 << (bps - 8);
     FLType sFloorFL = static_cast<FLType>(sFloor);
     //FLType sFloorCFL = static_cast<FLType>(sFloorC);
@@ -140,13 +133,11 @@ void Retinex_MSRCP(VSFrameRef * dst, const VSFrameRef * src, const VSAPI * vsapi
             {
                 sFloor = min;
                 sCeil = max;
-                sRange = sCeil - sFloor;
                 sFloorFL = static_cast<FLType>(sFloor);
                 //sCeilFL = static_cast<FLType>(sCeil);
-                sRangeFL = static_cast<FLType>(sRange);
             }
 
-            gain = 1 / sRangeFL;
+            gain = 1 / static_cast<FLType>(sCeil - sFloor);
             for (j = 0; j < height; j++)
             {
                 i = stride * j;
@@ -157,25 +148,12 @@ void Retinex_MSRCP(VSFrameRef * dst, const VSFrameRef * src, const VSAPI * vsapi
 
         Retinex_MSR(odata, idata, d, height, width, stride);
 
-        if (d.fulld)
+        offset = dFloorFL + FLType(0.5);
+        for (j = 0; j < height; j++)
         {
-            offset = FLType(0.5);
-            for (j = 0; j < height; j++)
-            {
-                i = stride * j;
-                for (upper = i + width; i < upper; i++)
-                    Ydstp[i] = static_cast<T>(odata[i] * dRangeFL + offset);
-            }
-        }
-        else
-        {
-            offset = dFloorFL + FLType(0.5);
-            for (j = 0; j < height; j++)
-            {
-                i = stride * j;
-                for (upper = i + width; i < upper; i++)
-                    Ydstp[i] = static_cast<T>(odata[i] * dRangeFL + offset);
-            }
+            i = stride * j;
+            for (upper = i + width; i < upper; i++)
+                Ydstp[i] = static_cast<T>(odata[i] * dRangeFL + offset);
         }
     }
     else if (fi->colorFamily == cmRGB)
@@ -190,17 +168,14 @@ void Retinex_MSRCP(VSFrameRef * dst, const VSFrameRef * src, const VSAPI * vsapi
         Bsrcp = reinterpret_cast<const T *>(vsapi->getReadPtr(src, 2));
         Bdstp = reinterpret_cast<T *>(vsapi->getWritePtr(dst, 2));
 
-        FLType Kr, Kg, Kb;
-        ColorMatrix_Parameter(d.ColorMatrix_, Kr, Kg, Kb);
-
         if (d.fulls)
         {
-            gain = 1 / sRangeFL;
+            gain = 1 / (sRangeFL * 3);
             for (j = 0; j < height; j++)
             {
                 i = stride * j;
                 for (upper = i + width; i < upper; i++)
-                    idata[i] = (Kr*Rsrcp[i] + Kg*Gsrcp[i] + Kb*Bsrcp[i]) * gain;
+                    idata[i] = (Rsrcp[i] + Gsrcp[i] + Bsrcp[i]) * gain;
             }
         }
         else
@@ -222,18 +197,17 @@ void Retinex_MSRCP(VSFrameRef * dst, const VSFrameRef * src, const VSAPI * vsapi
             {
                 sFloor = min;
                 sCeil = max;
-                sRange = sCeil - sFloor;
                 sFloorFL = static_cast<FLType>(sFloor);
                 //sCeilFL = static_cast<FLType>(sCeil);
-                sRangeFL = static_cast<FLType>(sRange);
             }
 
-            gain = 1 / sRangeFL;
+            offset = sFloorFL * -3;
+            gain = 1 / (static_cast<FLType>(sCeil - sFloor) * 3);
             for (j = 0; j < height; j++)
             {
                 i = stride * j;
                 for (upper = i + width; i < upper; i++)
-                    idata[i] = (Kr*Rsrcp[i] + Kg*Gsrcp[i] + Kb*Bsrcp[i] - sFloorFL) * gain;
+                    idata[i] = (Rsrcp[i] + Gsrcp[i] + Bsrcp[i] + offset) * gain;
             }
         }
 
@@ -247,7 +221,8 @@ void Retinex_MSRCP(VSFrameRef * dst, const VSFrameRef * src, const VSAPI * vsapi
                 i = stride * j;
                 for (upper = i + width; i < upper; i++)
                 {
-                    gain = Min(sRangeFL / Max(Rsrcp[i], Max(Gsrcp[i], Bsrcp[i])), idata[i] <= 0 ? 1 : odata[i] / idata[i]);
+                    gain = idata[i] <= 0 ? 1 : odata[i] / idata[i];
+                    gain = Min(sRangeFL / Max(Rsrcp[i], Max(Gsrcp[i], Bsrcp[i])), gain);
                     Rdstp[i] = static_cast<T>(Rsrcp[i] * gain + offset);
                     Gdstp[i] = static_cast<T>(Gsrcp[i] * gain + offset);
                     Bdstp[i] = static_cast<T>(Bsrcp[i] * gain + offset);
@@ -263,7 +238,8 @@ void Retinex_MSRCP(VSFrameRef * dst, const VSFrameRef * src, const VSAPI * vsapi
                 i = stride * j;
                 for (upper = i + width; i < upper; i++)
                 {
-                    gain = Min(sRangeFL / Max(Rsrcp[i], Max(Gsrcp[i], Bsrcp[i])), idata[i] <= 0 ? 1 : odata[i] / idata[i]) * scale;
+                    gain = idata[i] <= 0 ? 1 : odata[i] / idata[i];
+                    gain = Min(sRangeFL / Max(Rsrcp[i], Max(Gsrcp[i], Bsrcp[i])), gain) * scale;
                     Rdstp[i] = static_cast<T>((Rsrcp[i] - sFloor) * gain + offset);
                     Gdstp[i] = static_cast<T>((Gsrcp[i] - sFloor) * gain + offset);
                     Bdstp[i] = static_cast<T>((Bsrcp[i] - sFloor) * gain + offset);
@@ -312,13 +288,11 @@ void Retinex_MSRCP(VSFrameRef * dst, const VSFrameRef * src, const VSAPI * vsapi
             {
                 sFloor = min;
                 sCeil = max;
-                sRange = sCeil - sFloor;
                 sFloorFL = static_cast<FLType>(sFloor);
                 //sCeilFL = static_cast<FLType>(sCeil);
-                sRangeFL = static_cast<FLType>(sRange);
             }
 
-            gain = 1 / sRangeFL;
+            gain = 1 / static_cast<FLType>(sCeil - sFloor);
             for (j = 0; j < height; j++)
             {
                 i = stride * j;
@@ -329,35 +303,34 @@ void Retinex_MSRCP(VSFrameRef * dst, const VSFrameRef * src, const VSAPI * vsapi
 
         Retinex_MSR(odata, idata, d, height, width, stride);
 
-        if (dRangeCFL == sRangeCFL)
-        {
-            offset = dNeutralFL + FLType(0.5);
-            for (j = 0; j < height; j++)
-            {
-                i = stride * j;
-                for (upper = i + width; i < upper; i++)
-                {
-                    gain = Min(sRangeC2FL / Max(Abs(Usrcp[i] - sNeutral), Abs(Vsrcp[i] - sNeutral)), idata[i] <= 0 ? 1 : odata[i] / idata[i]);
-                    Ydstp[i] = static_cast<T>(odata[i] * dRangeFL + dFloorFL + FLType(0.5));
-                    Udstp[i] = static_cast<T>((Usrcp[i] - sNeutral) * gain + offset);
-                    Vdstp[i] = static_cast<T>((Vsrcp[i] - sNeutral) * gain + offset);
-                }
-            }
-        }
+        FLType chroma_protect_mul1 = static_cast<FLType>(d.chroma_protect - 1);
+        FLType chroma_protect_mul2 = static_cast<FLType>(1 / log(d.chroma_protect));
+
+        int Uval, Vval;
+        scale = dRangeCFL / sRangeCFL;
+        if (d.fulld)
+            offset = dNeutralFL + FLType(0.499999);
         else
-        {
-            scale = dRangeCFL / sRangeCFL;
             offset = dNeutralFL + FLType(0.5);
-            for (j = 0; j < height; j++)
+
+        for (j = 0; j < height; j++)
+        {
+            i = stride * j;
+            for (upper = i + width; i < upper; i++)
             {
-                i = stride * j;
-                for (upper = i + width; i < upper; i++)
-                {
-                    gain = Min(sRangeC2FL / Max(Abs(Usrcp[i] - sNeutral), Abs(Vsrcp[i] - sNeutral)), idata[i] <= 0 ? 1 : odata[i] / idata[i]) * scale;
-                    Ydstp[i] = static_cast<T>(odata[i] * dRangeFL + dFloorFL + FLType(0.5));
-                    Udstp[i] = static_cast<T>((Usrcp[i] - sNeutral) * gain + offset);
-                    Vdstp[i] = static_cast<T>((Vsrcp[i] - sNeutral) * gain + offset);
-                }
+                if (d.chroma_protect > 1)
+                    gain = idata[i] <= 0 ? 1 : log(odata[i] / idata[i] * chroma_protect_mul1 + 1) * chroma_protect_mul2;
+                else
+                    gain = idata[i] <= 0 ? 1 : odata[i] / idata[i];
+                Uval = Usrcp[i] - sNeutral;
+                Vval = Vsrcp[i] - sNeutral;
+                if (dRangeCFL == sRangeCFL)
+                    gain = Min(sRangeC2FL / Max(Abs(Uval), Abs(Vval)), gain);
+                else
+                    gain = Min(sRangeC2FL / Max(Abs(Uval), Abs(Vval)), gain) * scale;
+                Ydstp[i] = static_cast<T>(odata[i] * dRangeFL + dFloorFL + FLType(0.5));
+                Udstp[i] = static_cast<T>(Uval * gain + offset);
+                Vdstp[i] = static_cast<T>(Vval * gain + offset);
             }
         }
     }

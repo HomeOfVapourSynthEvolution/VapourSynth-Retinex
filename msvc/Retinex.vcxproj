@@ -121,7 +121,6 @@
     <ClInclude Include="..\include\MSR.h" />
     <ClInclude Include="..\include\MSRCP.h" />
     <ClInclude Include="..\include\Helper.h" />
-    <ClInclude Include="..\include\Specification.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\source\Gaussian.cpp" />
