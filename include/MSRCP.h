@@ -28,17 +28,44 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
+const struct MSRCPPara
+{
+    double chroma_protect = 1.2;
+} MSRCPDefault;
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
 class MSRCPData
     : public MSRData
 {
 public:
-    double chroma_protect = 1.2;
+    double chroma_protect = MSRCPDefault.chroma_protect;
 
 public:
-    MSRCPData(const VSAPI *_vsapi = nullptr)
-        : MSRData(_vsapi) {}
+    MSRCPData(const VSAPI *_vsapi = nullptr, std::string _FunctionName = "MSRCP")
+        : MSRData(_vsapi, _FunctionName) {}
 
     ~MSRCPData() {}
+
+    virtual int arguments_process(const VSMap *in, VSMap *out)
+    {
+        MSRData::arguments_process(in, out);
+
+        int error;
+
+        chroma_protect = vsapi->propGetFloat(in, "chroma_protect", 0, &error);
+        if (error)
+            chroma_protect = MSRCPDefault.chroma_protect;
+        if (chroma_protect < 1)
+        {
+            setError(out, "Invalid \"chroma_protect\" assigned, must be float number ranges in [1, +inf)");
+            return 1;
+        }
+
+        return 0;
+    }
 };
 
 
@@ -48,17 +75,38 @@ void VS_CC MSRCPCreate(const VSMap *in, VSMap *out, void *userData, VSCore *core
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
+class MSRCPProcess
+    : public MSRProcess
+{
+private:
+    const MSRCPData &d;
+
+private:
+    template < typename T >
+    void process_core();
+
+protected:
+    virtual void process_core8() { process_core<uint8_t>(); }
+    virtual void process_core16() { process_core<uint16_t>(); }
+
+public:
+    MSRCPProcess(const MSRCPData &_d, int n, VSFrameContext *frameCtx, VSCore *core, const VSAPI *_vsapi)
+        : MSRProcess(_d, n, frameCtx, core, _vsapi), d(_d) {}
+
+    virtual ~MSRCPProcess() {}
+};
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
 template < typename T >
-void Retinex_MSRCP(VSFrameRef * dst, const VSFrameRef * src, const VSAPI * vsapi, const MSRCPData &d)
+void MSRCPProcess::process_core()
 {
     int i, j, upper;
     const T *Ysrcp;
     T *Ydstp;
-    int stride, width, height, pcount;
 
-    const VSFormat *fi = vsapi->getFrameFormat(src);
-
-    int bps = fi->bitsPerSample;
     T sFloor = 0;
     //T sFloorC = 0;
     int sNeutral = 128 << (bps - 8);
@@ -88,11 +136,6 @@ void Retinex_MSRCP(VSFrameRef * dst, const VSFrameRef * src, const VSAPI * vsapi
     //FLType dCeilCFL = static_cast<FLType>(dCeilC);
     FLType dRangeFL = static_cast<FLType>(dRange);
     FLType dRangeCFL = static_cast<FLType>(dRangeC);
-
-    stride = vsapi->getStride(src, 0) / sizeof(T);
-    width = vsapi->getFrameWidth(src, 0);
-    height = vsapi->getFrameHeight(src, 0);
-    pcount = stride * height;
 
     FLType gain, offset, scale;
 
@@ -146,7 +189,8 @@ void Retinex_MSRCP(VSFrameRef * dst, const VSFrameRef * src, const VSAPI * vsapi
             }
         }
 
-        Retinex_MSR(odata, idata, d, height, width, stride);
+        MSRKernel(odata, idata);
+        SimplestColorBalance(odata, idata);
 
         offset = dFloorFL + FLType(0.5);
         for (j = 0; j < height; j++)
@@ -211,7 +255,10 @@ void Retinex_MSRCP(VSFrameRef * dst, const VSFrameRef * src, const VSAPI * vsapi
             }
         }
 
-        Retinex_MSR(odata, idata, d, height, width, stride);
+        MSRKernel(odata, idata);
+        SimplestColorBalance(odata, idata);
+
+        T Rval, Gval, Bval;
 
         if (sFloor == 0 && dFloorFL == 0 && sRangeFL == dRangeFL)
         {
@@ -221,11 +268,14 @@ void Retinex_MSRCP(VSFrameRef * dst, const VSFrameRef * src, const VSAPI * vsapi
                 i = stride * j;
                 for (upper = i + width; i < upper; i++)
                 {
+                    Rval = Rsrcp[i];
+                    Gval = Gsrcp[i];
+                    Bval = Bsrcp[i];
                     gain = idata[i] <= 0 ? 1 : odata[i] / idata[i];
-                    gain = Min(sRangeFL / Max(Rsrcp[i], Max(Gsrcp[i], Bsrcp[i])), gain);
-                    Rdstp[i] = static_cast<T>(Rsrcp[i] * gain + offset);
-                    Gdstp[i] = static_cast<T>(Gsrcp[i] * gain + offset);
-                    Bdstp[i] = static_cast<T>(Bsrcp[i] * gain + offset);
+                    gain = Min(sRangeFL / Max(Rval, Max(Gval, Bval)), gain);
+                    Rdstp[i] = static_cast<T>(Rval * gain + offset);
+                    Gdstp[i] = static_cast<T>(Gval * gain + offset);
+                    Bdstp[i] = static_cast<T>(Bval * gain + offset);
                 }
             }
         }
@@ -238,11 +288,14 @@ void Retinex_MSRCP(VSFrameRef * dst, const VSFrameRef * src, const VSAPI * vsapi
                 i = stride * j;
                 for (upper = i + width; i < upper; i++)
                 {
+                    Rval = Rsrcp[i] - sFloor;
+                    Gval = Gsrcp[i] - sFloor;
+                    Bval = Bsrcp[i] - sFloor;
                     gain = idata[i] <= 0 ? 1 : odata[i] / idata[i];
-                    gain = Min(sRangeFL / Max(Rsrcp[i], Max(Gsrcp[i], Bsrcp[i])), gain) * scale;
-                    Rdstp[i] = static_cast<T>((Rsrcp[i] - sFloor) * gain + offset);
-                    Gdstp[i] = static_cast<T>((Gsrcp[i] - sFloor) * gain + offset);
-                    Bdstp[i] = static_cast<T>((Bsrcp[i] - sFloor) * gain + offset);
+                    gain = Min(sRangeFL / Max(Rval, Max(Gval, Bval)), gain) * scale;
+                    Rdstp[i] = static_cast<T>(Rval * gain + offset);
+                    Gdstp[i] = static_cast<T>(Gval * gain + offset);
+                    Bdstp[i] = static_cast<T>(Bval * gain + offset);
                 }
             }
         }
@@ -301,7 +354,8 @@ void Retinex_MSRCP(VSFrameRef * dst, const VSFrameRef * src, const VSAPI * vsapi
             }
         }
 
-        Retinex_MSR(odata, idata, d, height, width, stride);
+        MSRKernel(odata, idata);
+        SimplestColorBalance(odata, idata);
 
         FLType chroma_protect_mul1 = static_cast<FLType>(d.chroma_protect - 1);
         FLType chroma_protect_mul2 = static_cast<FLType>(1 / log(d.chroma_protect));
@@ -312,23 +366,24 @@ void Retinex_MSRCP(VSFrameRef * dst, const VSFrameRef * src, const VSAPI * vsapi
             offset = dNeutralFL + FLType(0.499999);
         else
             offset = dNeutralFL + FLType(0.5);
+        FLType offsetY = dFloorFL + FLType(0.5);
 
         for (j = 0; j < height; j++)
         {
             i = stride * j;
             for (upper = i + width; i < upper; i++)
             {
+                Uval = Usrcp[i] - sNeutral;
+                Vval = Vsrcp[i] - sNeutral;
                 if (d.chroma_protect > 1)
                     gain = idata[i] <= 0 ? 1 : log(odata[i] / idata[i] * chroma_protect_mul1 + 1) * chroma_protect_mul2;
                 else
                     gain = idata[i] <= 0 ? 1 : odata[i] / idata[i];
-                Uval = Usrcp[i] - sNeutral;
-                Vval = Vsrcp[i] - sNeutral;
                 if (dRangeCFL == sRangeCFL)
                     gain = Min(sRangeC2FL / Max(Abs(Uval), Abs(Vval)), gain);
                 else
                     gain = Min(sRangeC2FL / Max(Abs(Uval), Abs(Vval)), gain) * scale;
-                Ydstp[i] = static_cast<T>(odata[i] * dRangeFL + dFloorFL + FLType(0.5));
+                Ydstp[i] = static_cast<T>(odata[i] * dRangeFL + offsetY);
                 Udstp[i] = static_cast<T>(Uval * gain + offset);
                 Vdstp[i] = static_cast<T>(Vval * gain + offset);
             }

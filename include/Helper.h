@@ -135,4 +135,153 @@ void freebuff(T * buff)
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
+const int VSMaxPlaneCount = 3;
+
+
+class VSData
+{
+protected:
+    std::string NameSpace = "";
+    std::string FunctionName = "";
+
+public:
+    const VSAPI *vsapi = nullptr;
+    VSNodeRef *node = nullptr;
+    const VSVideoInfo *vi = nullptr;
+
+    int process[VSMaxPlaneCount];
+
+protected:
+    void setError(VSMap *out, const char *error_msg) const
+    {
+        std::string str = NameSpace + "." + FunctionName + ": " + error_msg;
+        vsapi->setError(out, str.c_str());
+    }
+
+public:
+    VSData(const VSAPI *_vsapi = nullptr, std::string _FunctionName = "", std::string _NameSpace = "")
+        : NameSpace(_NameSpace), FunctionName(_FunctionName), vsapi(_vsapi)
+    {
+        for (int i = 0; i < VSMaxPlaneCount; i++)
+            process[i] = 1;
+    }
+
+    virtual ~VSData()
+    {
+        if (node) vsapi->freeNode(node);
+    }
+
+    virtual int arguments_process(const VSMap *in, VSMap *out) = 0;
+};
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+class VSProcess
+{
+private:
+    const VSData &d;
+
+protected:
+    const VSAPI *vsapi = nullptr;
+
+    const VSFrameRef *src = nullptr;
+    const VSFormat *fi = nullptr;
+    VSFrameRef *dst = nullptr;
+
+    int Bps;
+    int bps;
+
+    int stride;
+    int width;
+    int height;
+    int pcount;
+
+    int src_stride[VSMaxPlaneCount];
+    int src_width[VSMaxPlaneCount];
+    int src_height[VSMaxPlaneCount];
+    int src_pcount[VSMaxPlaneCount];
+
+    int dst_stride[VSMaxPlaneCount];
+    int dst_width[VSMaxPlaneCount];
+    int dst_height[VSMaxPlaneCount];
+    int dst_pcount[VSMaxPlaneCount];
+
+private:
+    template < typename T >
+    void process_core();
+
+protected:
+    virtual void process_core8() = 0;
+    virtual void process_core16() = 0;
+
+public:
+    VSProcess(const VSData &_d, int n, VSFrameContext *frameCtx, VSCore *core, const VSAPI *_vsapi)
+        : d(_d), vsapi(_vsapi)
+    {
+        src = vsapi->getFrameFilter(n, d.node, frameCtx);
+        fi = vsapi->getFrameFormat(src);
+
+        Bps = fi->bytesPerSample;
+        bps = fi->bitsPerSample;
+
+        stride = vsapi->getStride(src, 0) / Bps;
+        width = vsapi->getFrameWidth(src, 0);
+        height = vsapi->getFrameHeight(src, 0);
+        pcount = stride * height;
+
+        const int planes[VSMaxPlaneCount] = { 0, 1, 2 };
+        const VSFrameRef * cp_planes[VSMaxPlaneCount] = { d.process[0] ? nullptr : src, d.process[1] ? nullptr : src, d.process[2] ? nullptr : src };
+        dst = vsapi->newVideoFrame2(fi, width, height, cp_planes, planes, src, core);
+
+        for (int i = 0; i < VSMaxPlaneCount; i++)
+        {
+            if (d.process[i])
+            {
+                src_stride[i] = vsapi->getStride(src, i) / Bps;
+                src_width[i] = vsapi->getFrameWidth(src, i);
+                src_height[i] = vsapi->getFrameHeight(src, i);
+                src_pcount[i] = src_stride[i] * src_height[i];
+
+                dst_stride[i] = vsapi->getStride(dst, i) / Bps;
+                dst_width[i] = vsapi->getFrameWidth(dst, i);
+                dst_height[i] = vsapi->getFrameHeight(dst, i);
+                dst_pcount[i] = dst_stride[i] * dst_height[i];
+            }
+        }
+    }
+
+    virtual ~VSProcess()
+    {
+        vsapi->freeFrame(src);
+    }
+
+    VSFrameRef * process()
+    {
+        int i;
+
+        for (i = 0; i < VSMaxPlaneCount; i++)
+        {
+            if (d.process[i]) break;
+        }
+        if (i >= VSMaxPlaneCount) return dst;
+
+        else if (Bps == 1)
+        {
+            process_core8();
+        }
+        else if (Bps == 2)
+        {
+            process_core16();
+        }
+
+        return dst;
+    }
+};
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
 #endif
