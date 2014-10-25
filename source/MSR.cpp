@@ -17,7 +17,6 @@
 */
 
 
-#include <cmath>
 #include "Helper.h"
 #include "Gaussian.h"
 #include "MSR.h"

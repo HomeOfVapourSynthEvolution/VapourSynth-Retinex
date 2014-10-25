@@ -21,7 +21,9 @@
 #define HELPER_H_
 
 
+#include <string>
 #include <vector>
+#include <cmath>
 #include <cfloat>
 #include <vapoursynth/VapourSynth.h>
 #include <vapoursynth/VSHelper.h>

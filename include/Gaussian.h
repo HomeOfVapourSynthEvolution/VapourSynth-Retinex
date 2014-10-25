@@ -21,7 +21,6 @@
 #define GAUSSIAN_H_
 
 
-#include <cmath>
 #include "Helper.h"
 
 
