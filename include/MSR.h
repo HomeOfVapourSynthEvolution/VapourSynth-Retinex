@@ -188,9 +188,120 @@ public:
 
     virtual ~MSRProcess() {}
 
-    int SimplestColorBalance(FLType *odata, const FLType *idata) const;
+    // Multi Scale Retinex process kernel for floating point data
     int MSRKernel(FLType *odata, const FLType *idata) const;
+
+    // Simplest color balance with pixel clipping on either side of the dynamic range
+    int SimplestColorBalance(FLType *odata, const FLType *idata) const; // odata as input and output, idata as source
+    template < typename T >
+    int SimplestColorBalance(T *dst, FLType *odata, const T *src, T dFloor, T dCeil) const; // odata as input, dst as output, src as source
 };
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+template < typename T >
+int MSRProcess::SimplestColorBalance(T *dst, FLType *odata, const T *src, T dFloor, T dCeil) const
+{
+    int i, j, upper;
+
+    FLType offset, gain;
+    FLType min = FLType_MAX;
+    FLType max = -FLType_MAX;
+
+    FLType dFloorFL = static_cast<FLType>(dFloor);
+    FLType dCeilFL = static_cast<FLType>(dCeil);
+    FLType dRangeFL = dCeilFL - dFloorFL;
+
+    for (j = 0; j < height; j++)
+    {
+        i = stride * j;
+        for (upper = i + width; i < upper; i++)
+        {
+            min = Min(min, odata[i]);
+            max = Max(max, odata[i]);
+        }
+    }
+
+    if (max <= min)
+    {
+        memcpy(dst, src, sizeof(T)*pcount);
+        return 1;
+    }
+
+    if (d.lower_thr > 0 || d.upper_thr > 0)
+    {
+        int h, HistBins = d.HistBins;
+        int Count, MaxCount;
+
+        int *Histogram = vs_aligned_malloc<int>(sizeof(int)*HistBins, Alignment);
+        memset(Histogram, 0, sizeof(int)*HistBins);
+
+        gain = (HistBins - 1) / (max - min);
+        offset = -min * gain;
+
+        for (j = 0; j < height; j++)
+        {
+            i = stride * j;
+            for (upper = i + width; i < upper; i++)
+            {
+                Histogram[static_cast<int>(odata[i] * gain + offset)]++;
+            }
+        }
+
+        gain = (max - min) / (HistBins - 1);
+        offset = min;
+
+        Count = 0;
+        MaxCount = static_cast<int>(width*height*d.lower_thr + 0.5);
+
+        for (h = 0; h < HistBins; h++)
+        {
+            Count += Histogram[h];
+            if (Count > MaxCount) break;
+        }
+
+        min = h * gain + offset;
+
+        Count = 0;
+        MaxCount = static_cast<int>(width*height*d.upper_thr + 0.5);
+
+        for (h = HistBins - 1; h >= 0; h--)
+        {
+            Count += Histogram[h];
+            if (Count > MaxCount) break;
+        }
+
+        max = h * gain + offset;
+
+        vs_aligned_free(Histogram);
+    }
+
+    gain = dRangeFL / (max - min);
+    offset = -min * gain + dFloorFL + FLType(0.5);
+
+    if (d.lower_thr > 0 || d.upper_thr > 0)
+    {
+        for (j = 0; j < height; j++)
+        {
+            i = stride * j;
+            for (upper = i + width; i < upper; i++)
+                dst[i] = static_cast<T>(Clip(odata[i] * gain + offset, dFloorFL, dCeilFL));
+        }
+    }
+    else
+    {
+        for (j = 0; j < height; j++)
+        {
+            i = stride * j;
+            for (upper = i + width; i < upper; i++)
+                dst[i] = static_cast<T>(odata[i] * gain + offset);
+        }
+    }
+
+    return 0;
+}
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

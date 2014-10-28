@@ -192,22 +192,23 @@ protected:
     const VSFormat *fi = nullptr;
     VSFrameRef *dst = nullptr;
 
+    int PlaneCount;
     int Bps;
     int bps;
 
-    int stride;
-    int width;
     int height;
+    int width;
+    int stride;
     int pcount;
 
-    int src_stride[VSMaxPlaneCount];
-    int src_width[VSMaxPlaneCount];
     int src_height[VSMaxPlaneCount];
+    int src_width[VSMaxPlaneCount];
+    int src_stride[VSMaxPlaneCount];
     int src_pcount[VSMaxPlaneCount];
 
-    int dst_stride[VSMaxPlaneCount];
-    int dst_width[VSMaxPlaneCount];
     int dst_height[VSMaxPlaneCount];
+    int dst_width[VSMaxPlaneCount];
+    int dst_stride[VSMaxPlaneCount];
     int dst_pcount[VSMaxPlaneCount];
 
 private:
@@ -225,32 +226,37 @@ public:
         src = vsapi->getFrameFilter(n, d.node, frameCtx);
         fi = vsapi->getFrameFormat(src);
 
+        PlaneCount = fi->numPlanes;
         Bps = fi->bytesPerSample;
         bps = fi->bitsPerSample;
 
-        stride = vsapi->getStride(src, 0) / Bps;
-        width = vsapi->getFrameWidth(src, 0);
         height = vsapi->getFrameHeight(src, 0);
+        width = vsapi->getFrameWidth(src, 0);
+        stride = vsapi->getStride(src, 0) / Bps;
         pcount = stride * height;
 
-        const int planes[VSMaxPlaneCount] = { 0, 1, 2 };
-        const VSFrameRef * cp_planes[VSMaxPlaneCount] = { d.process[0] ? nullptr : src, d.process[1] ? nullptr : src, d.process[2] ? nullptr : src };
-        dst = vsapi->newVideoFrame2(fi, width, height, cp_planes, planes, src, core);
+        int planes[VSMaxPlaneCount];
+        const VSFrameRef *cp_planes[VSMaxPlaneCount];
 
         for (int i = 0; i < VSMaxPlaneCount; i++)
         {
-            if (d.process[i])
-            {
-                src_stride[i] = vsapi->getStride(src, i) / Bps;
-                src_width[i] = vsapi->getFrameWidth(src, i);
-                src_height[i] = vsapi->getFrameHeight(src, i);
-                src_pcount[i] = src_stride[i] * src_height[i];
+            planes[i] = i;
+            cp_planes[i] = d.process[i] ? nullptr : src;
+        }
 
-                dst_stride[i] = vsapi->getStride(dst, i) / Bps;
-                dst_width[i] = vsapi->getFrameWidth(dst, i);
-                dst_height[i] = vsapi->getFrameHeight(dst, i);
-                dst_pcount[i] = dst_stride[i] * dst_height[i];
-            }
+        dst = vsapi->newVideoFrame2(fi, width, height, cp_planes, planes, src, core);
+
+        for (int i = 0; i < PlaneCount; i++)
+        {
+            src_height[i] = vsapi->getFrameHeight(src, i);
+            src_width[i] = vsapi->getFrameWidth(src, i);
+            src_stride[i] = vsapi->getStride(src, i) / Bps;
+            src_pcount[i] = src_stride[i] * src_height[i];
+
+            dst_height[i] = vsapi->getFrameHeight(dst, i);
+            dst_width[i] = vsapi->getFrameWidth(dst, i);
+            dst_stride[i] = vsapi->getStride(dst, i) / Bps;
+            dst_pcount[i] = dst_stride[i] * dst_height[i];
         }
     }
 
@@ -263,11 +269,11 @@ public:
     {
         int i;
 
-        for (i = 0; i < VSMaxPlaneCount; i++)
+        for (i = 0; i < PlaneCount; i++)
         {
             if (d.process[i]) break;
         }
-        if (i >= VSMaxPlaneCount) return dst;
+        if (i >= PlaneCount) return dst;
 
         else if (Bps == 1)
         {

@@ -18,6 +18,7 @@
 
 
 #include "MSRCP.h"
+#include "MSRCR.h"
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -30,6 +31,7 @@ VS_EXTERNAL_API(void) VapourSynthPluginInit(VSConfigPlugin configFunc, VSRegiste
         VAPOURSYNTH_API_VERSION, 1, plugin);
 
     registerFunc("MSRCP", "input:clip;sigma:float[]:opt;lower_thr:float:opt;upper_thr:float:opt;fulls:int:opt;fulld:int:opt;chroma_protect:float:opt", MSRCPCreate, nullptr, plugin);
+    registerFunc("MSRCR", "input:clip;sigma:float[]:opt;lower_thr:float:opt;upper_thr:float:opt;fulls:int:opt;fulld:int:opt;restore:float:opt", MSRCRCreate, nullptr, plugin);
 }
 
 

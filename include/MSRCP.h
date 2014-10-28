@@ -104,9 +104,12 @@ template < typename T >
 void MSRCPProcess::process_core()
 {
     int i, j, upper;
+    FLType gain, offset, scale;
     const T *Ysrcp;
     T *Ydstp;
 
+    // Calculate quantization parameters according to bit per sample and limited/full range
+    // Floor and Ceil for limited range src will be determined later according to minimum and maximum value in the frame
     T sFloor = 0;
     //T sFloorC = 0;
     int sNeutral = 128 << (bps - 8);
@@ -137,16 +140,17 @@ void MSRCPProcess::process_core()
     FLType dRangeFL = static_cast<FLType>(dRange);
     FLType dRangeCFL = static_cast<FLType>(dRangeC);
 
-    FLType gain, offset, scale;
-
+    // Allocate floating point data buff
     FLType *idata = vs_aligned_malloc<FLType>(sizeof(FLType)*pcount, Alignment);
     FLType *odata = vs_aligned_malloc<FLType>(sizeof(FLType)*pcount, Alignment);
 
-    if (fi->colorFamily == cmGray)
+    if (fi->colorFamily == cmGray) // Procedure for Gray color family
     {
+        // Get read and write pointer for src and dst
         Ysrcp = reinterpret_cast<const T *>(vsapi->getReadPtr(src, 0));
         Ydstp = reinterpret_cast<T *>(vsapi->getWritePtr(dst, 0));
 
+        // Derive floating point intensity channel from integer Y channel
         if (d.fulls)
         {
             gain = 1 / sRangeFL;
@@ -159,6 +163,7 @@ void MSRCPProcess::process_core()
         }
         else
         {
+            // If src is of limited range, determine the Floor and Ceil by the minimum and maximum value in the frame
             T min, max;
 
             min = sCeil;
@@ -189,9 +194,12 @@ void MSRCPProcess::process_core()
             }
         }
 
+        // Apply MSR to floating point intensity channel
         MSRKernel(odata, idata);
+        // Simplest color balance with pixel clipping on either side of the dynamic range
         SimplestColorBalance(odata, idata);
 
+        // Convert floating point intensity channel to integer Y channel
         offset = dFloorFL + FLType(0.5);
         for (j = 0; j < height; j++)
         {
@@ -200,8 +208,9 @@ void MSRCPProcess::process_core()
                 Ydstp[i] = static_cast<T>(odata[i] * dRangeFL + offset);
         }
     }
-    else if (fi->colorFamily == cmRGB)
+    else if (fi->colorFamily == cmRGB) // Procedure for RGB color family
     {
+        // Get read and write pointer for src and dst
         const T *Rsrcp, *Gsrcp, *Bsrcp;
         T *Rdstp, *Gdstp, *Bdstp;
 
@@ -212,6 +221,7 @@ void MSRCPProcess::process_core()
         Bsrcp = reinterpret_cast<const T *>(vsapi->getReadPtr(src, 2));
         Bdstp = reinterpret_cast<T *>(vsapi->getWritePtr(dst, 2));
 
+        // Derive floating point intensity channel from integer RGB channel
         if (d.fulls)
         {
             gain = 1 / (sRangeFL * 3);
@@ -224,6 +234,7 @@ void MSRCPProcess::process_core()
         }
         else
         {
+            // If src is of limited range, determine the Floor and Ceil by the minimum and maximum value in the frame
             T min, max;
 
             min = sCeil;
@@ -255,9 +266,12 @@ void MSRCPProcess::process_core()
             }
         }
 
+        // Apply MSR to floating point intensity channel
         MSRKernel(odata, idata);
+        // Simplest color balance with pixel clipping on either side of the dynamic range
         SimplestColorBalance(odata, idata);
 
+        // Adjust integer RGB channel according to filtering result in floating point intensity channel
         T Rval, Gval, Bval;
 
         if (sFloor == 0 && dFloorFL == 0 && sRangeFL == dRangeFL)
@@ -300,8 +314,9 @@ void MSRCPProcess::process_core()
             }
         }
     }
-    else
+    else // Procedure for YUV or YCoCg color family
     {
+        // Get read and write pointer for src and dst
         const T *Usrcp, *Vsrcp;
         T *Udstp, *Vdstp;
 
@@ -312,6 +327,7 @@ void MSRCPProcess::process_core()
         Vsrcp = reinterpret_cast<const T *>(vsapi->getReadPtr(src, 2));
         Vdstp = reinterpret_cast<T *>(vsapi->getWritePtr(dst, 2));
 
+        // Derive floating point intensity channel from integer Y channel
         if (d.fulls)
         {
             gain = 1 / sRangeFL;
@@ -324,6 +340,7 @@ void MSRCPProcess::process_core()
         }
         else
         {
+            // If src is of limited range, determine the Floor and Ceil by the minimum and maximum value in the frame
             T min, max;
 
             min = sCeil;
@@ -354,9 +371,14 @@ void MSRCPProcess::process_core()
             }
         }
 
+        // Apply MSR to floating point intensity channel
         MSRKernel(odata, idata);
+        // Simplest color balance with pixel clipping on either side of the dynamic range
         SimplestColorBalance(odata, idata);
 
+        // Convert floating point intensity channel to integer Y channel
+        // Adjust integer UV channel according to filtering result in floating point intensity channel
+        // Chroma protect uses log function to attenuate the adjustment in UV channel
         FLType chroma_protect_mul1 = static_cast<FLType>(d.chroma_protect - 1);
         FLType chroma_protect_mul2 = static_cast<FLType>(1 / log(d.chroma_protect));
 
@@ -390,6 +412,7 @@ void MSRCPProcess::process_core()
         }
     }
 
+    // Free floating point data buff
     vs_aligned_free(idata);
     vs_aligned_free(odata);
 }

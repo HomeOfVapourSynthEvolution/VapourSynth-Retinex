@@ -6,7 +6,7 @@ VapourSynth plugin
 
 namespace: retinex
 
-functions: MSRCP
+functions: MSRCP, MSRCR
 
 ## About Retinex
 
@@ -93,4 +93,69 @@ PNG image(PC range RGB24) input, filtered in PC range RGB48, output PC range RGB
 i = core.lsmas.LWLibavSource(r'Image.png')
 i = core.fmtc.bitdepth(i, bits=16)
 i = core.retinex.MSRCP(i)
+```
+
+## MSRCR
+
+### Description
+
+MSRCR(Multi Scale Retinex with Color Restoration) is based on MSR. It applies MSR to each spectral channel (e.g. R, G and B), and modify the MSR output by multiplying it by a color restoration function of the chromaticity.
+
+When MSR is applied to each spectral channel, it assumes the image obey gray world assumption. Otherwise, if the image violates gray world assumption, the MSR will produce grayish image by decreasing the color saturation, thus the color restoration step is proposed to solve this problem. However, for images with nice color balance, MSRCR still produces a desaturated look. Hence it is recommended to use MSRCP in most cases, and only apply MSRCR to the images with color cast. Also since MSRCR applies MSR to each spectral channel instead of intensity channel, it is slower than MSRCP.
+
+This function only accept 8-16bit integer RGB input.
+
+### Usage
+
+```python
+retinex.MSRCR(clip input, float[] sigmaS=[25,80,250], float lower_thr=0.001, float upper_thr=0.001, bool fulls=True, bool fulld=fulls, float restore=125)
+```
+
+- input:<br />
+    clip to process
+
+- sigma: (Default: [25,80,250])<br />
+    The same as MSRCP.
+
+- lower_thr: (Default: 0.001)<br />
+    The same as MSRCP.
+
+- upper_thr: (Default: 0.001)<br />
+    The same as MSRCP.
+
+- fulls: (Default: True)<br />
+    The same as MSRCP.
+
+- fulld: (Default: fulls)<br />
+    The same as MSRCP.
+
+- restore: (Default: 125)<br />
+    The strength of the nonlinearity for color restoration function, larger value result in stronger restoration, available range is [0, +inf).<br />
+    It is a multiplier in a log function, so try to adjust it in a large scale (e.g. multiply it by a power of 10) if you want to see any difference.
+
+### Example
+
+TV range YUV420P8 input, filtered in PC range RGB48, output PC range RGB48
+
+```python
+v = core.fmtc.resample(v, csp=vs.YUV444P16)
+v = core.fmtc.matrix(v, mat="709", csp=vs.RGB48)
+v = core.retinex.MSRCR(v)
+```
+
+JPEG image(PC range YUV420P8 with MPEG-1 chroma placement) input, filtered in PC range RGB48 without color restoration (pure MSR), output PC range RGB48
+
+```python
+i = core.lsmas.LWLibavSource(r'Image.jpg')
+i = core.fmtc.resample(i, csp=vs.YUV444P16, fulls=True, cplace="MPEG1")
+i = core.fmtc.matrix(i, mat="601", fulls=True, csp=vs.RGB48)
+i = core.retinex.MSRCR(i, restore=0)
+```
+
+PNG image(PC range RGB24) input, filtered in PC range RGB48, output PC range RGB48
+
+```python
+i = core.lsmas.LWLibavSource(r'Image.png')
+i = core.fmtc.bitdepth(i, bits=16)
+i = core.retinex.MSRCR(i)
 ```

@@ -25,6 +25,64 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
+int MSRProcess::MSRKernel(FLType *odata, const FLType *idata) const
+{
+    int i, j, upper;
+
+    FLType FloorFL = 0;
+    FLType CeilFL = 1;
+
+    FLType *gauss = vs_aligned_malloc<FLType>(sizeof(FLType)*pcount, Alignment);
+
+    for (j = 0; j < height; j++)
+    {
+        i = stride * j;
+        for (upper = i + width; i < upper; i++)
+            odata[i] = 1;
+    }
+
+    size_t s, scount = d.sigma.size();
+    FLType B, B1, B2, B3;
+
+    for (s = 0; s < scount; s++)
+    {
+        if (d.sigma[s] > 0)
+        {
+            Recursive_Gaussian_Parameters(d.sigma[s], B, B1, B2, B3);
+            Recursive_Gaussian2D_Horizontal(gauss, idata, height, width, stride, B, B1, B2, B3);
+            Recursive_Gaussian2D_Vertical(gauss, gauss, height, width, stride, B, B1, B2, B3);
+
+            for (j = 0; j < height; j++)
+            {
+                i = stride * j;
+                for (upper = i + width; i < upper; i++)
+                    odata[i] *= gauss[i] <= 0 ? 1 : idata[i] / gauss[i] + 1;
+            }
+        }
+        else
+        {
+            for (j = 0; j < height; j++)
+            {
+                i = stride * j;
+                for (upper = i + width; i < upper; i++)
+                    odata[i] *= FLType(2);
+            }
+        }
+    }
+
+    for (j = 0; j < height; j++)
+    {
+        i = stride * j;
+        for (upper = i + width; i < upper; i++)
+            odata[i] = log(odata[i]) / static_cast<FLType>(scount);
+    }
+
+    vs_aligned_free(gauss);
+
+    return 0;
+}
+
+
 int MSRProcess::SimplestColorBalance(FLType *odata, const FLType *idata) const
 {
     int i, j, upper;
@@ -61,7 +119,7 @@ int MSRProcess::SimplestColorBalance(FLType *odata, const FLType *idata) const
         memset(Histogram, 0, sizeof(int)*HistBins);
 
         gain = (HistBins - 1) / (max - min);
-        offset = - min * gain;
+        offset = -min * gain;
 
         for (j = 0; j < height; j++)
         {
@@ -121,64 +179,6 @@ int MSRProcess::SimplestColorBalance(FLType *odata, const FLType *idata) const
                 odata[i] = odata[i] * gain + offset;
         }
     }
-
-    return 0;
-}
-
-
-int MSRProcess::MSRKernel(FLType *odata, const FLType *idata) const
-{
-    int i, j, upper;
-
-    FLType FloorFL = 0;
-    FLType CeilFL = 1;
-
-    FLType *gauss = vs_aligned_malloc<FLType>(sizeof(FLType)*pcount, Alignment);
-
-    for (j = 0; j < height; j++)
-    {
-        i = stride * j;
-        for (upper = i + width; i < upper; i++)
-            odata[i] = 1;
-    }
-
-    size_t s, scount = d.sigma.size();
-    FLType B, B1, B2, B3;
-
-    for (s = 0; s < scount; s++)
-    {
-        if (d.sigma[s] > 0)
-        {
-            Recursive_Gaussian_Parameters(d.sigma[s], B, B1, B2, B3);
-            Recursive_Gaussian2D_Horizontal(gauss, idata, height, width, stride, B, B1, B2, B3);
-            Recursive_Gaussian2D_Vertical(gauss, gauss, height, width, stride, B, B1, B2, B3);
-
-            for (j = 0; j < height; j++)
-            {
-                i = stride * j;
-                for (upper = i + width; i < upper; i++)
-                    odata[i] *= gauss[i] <= 0 ? 1 : idata[i] / gauss[i] + 1;
-            }
-        }
-        else
-        {
-            for (j = 0; j < height; j++)
-            {
-                i = stride * j;
-                for (upper = i + width; i < upper; i++)
-                    odata[i] *= FLType(2);
-            }
-        }
-    }
-
-    for (j = 0; j < height; j++)
-    {
-        i = stride * j;
-        for (upper = i + width; i < upper; i++)
-            odata[i] = log(odata[i]) / static_cast<FLType>(scount);
-    }
-
-    vs_aligned_free(gauss);
 
     return 0;
 }

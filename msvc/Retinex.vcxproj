@@ -123,11 +123,13 @@
     <ClInclude Include="..\include\MSR.h" />
     <ClInclude Include="..\include\MSRCP.h" />
     <ClInclude Include="..\include\Helper.h" />
+    <ClInclude Include="..\include\MSRCR.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\source\Gaussian.cpp" />
     <ClCompile Include="..\source\MSR.cpp" />
     <ClCompile Include="..\source\MSRCP.cpp" />
+    <ClCompile Include="..\source\MSRCR.cpp" />
     <ClCompile Include="..\source\VSPlugin.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
