@@ -42,7 +42,6 @@ void Recursive_Gaussian2D_Vertical(FLType * output, const FLType * input, int he
 {
     int i0, i1, i2, i3, j, lower, upper;
     FLType P0, P1, P2, P3;
-    int pcount = stride*height;
 
     if (output != input)
     {
