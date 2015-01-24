@@ -7,7 +7,7 @@ include config.mak
 vpath %.cpp $(SRCDIR)
 vpath %.h $(SRCDIR)
 
-SRCS = source/VSPlugin.cpp source/Gaussian.cpp source/MSR.cpp source/MSRCP.cpp
+SRCS = source/VSPlugin.cpp source/Gaussian.cpp source/MSR.cpp source/MSRCP.cpp source/MSRCR.cpp
 
 OBJS = $(SRCS:%.cpp=%.o)
 
