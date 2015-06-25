@@ -92,7 +92,7 @@ LIBNAME=""
 
 CXXFLAGS="-std=c++11 -Wall -I. -I$SRCDIR/include"
 LDFLAGS=""
-SOFLAGS="-shared -Wl,-Bsymbolic"
+SOFLAGS="-shared"
 DEPLIBS=""
 TARGET="-msse2"
 
@@ -171,12 +171,10 @@ case "$TARGET_OS" in
         ;;
     *darwin*)
         LIBNAME="libretinex.dylib"
-        DEPLIBS="$DEPLIBS vapoursynth"
         SOFLAGS="$SOFLAGS -dynamiclib -Wl,-undefined,suppress -Wl,-read_only_relocs,suppress -Wl,-flat_namespace"
         ;;
     *linux*)
         LIBNAME="libretinex.so"
-        DEPLIBS="$DEPLIBS vapoursynth"
         CXXFLAGS="$CXXFLAGS -fPIC"
         SOFLAGS="$SOFLAGS -fPIC"
         ;;
