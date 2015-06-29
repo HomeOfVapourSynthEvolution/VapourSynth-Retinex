@@ -57,8 +57,8 @@ cc_check()
     fi
     echo "int main(void){$4 return 0;}" >> config.log
     echo "int main(void){$4 return 0;}" >> conftest.cpp
-    echo $CXX conftest.cpp -o conftest -Werror $1 $2 >> config.log
-    $CXX conftest.cpp -o conftest -Werror $1 $2 2>> config.log
+    echo $CXX conftest.cpp -o conftest $1 $2 >> config.log
+    $CXX conftest.cpp -o conftest $1 $2 2>> config.log
     ret=$?
     echo $ret >> config.log
     rm -f conftest*
@@ -93,7 +93,6 @@ LIBNAME=""
 CXXFLAGS="-std=c++11 -Wall -I. -I$SRCDIR/include"
 LDFLAGS=""
 SOFLAGS="-shared"
-DEPLIBS=""
 TARGET="-msse2"
 
 # -- options ----------------------------------------------------------------
@@ -190,23 +189,13 @@ fi
 if cc_check "-Os -ffast-math $CXXFLAGS" "$LDFLAGS"; then
     CXXFLAGS="-Os -ffast-math $CXXFLAGS"
 fi
-if cc_check "$CXXFLAGS -fexcess-precision=fast" "$LDFLAGS"; then
-    CXXFLAGS="$CXXFLAGS -fexcess-precision=fast"
+if cc_check "$CXXFLAGS" "$LDFLAGS"; then
+    CXXFLAGS="$CXXFLAGS"
 fi
 
 PKGCONFIGBIN="pkg-config"
 test -n "$(which ${CROSS}${PKGCONFIGBIN} 2> /dev/null)" && \
     PKGCONFIGBIN=${CROSS}${PKGCONFIGBIN}
-
-if $PKGCONFIGBIN --exists $DEPLIBS 2> /dev/null; then
-    LIBS="$($PKGCONFIGBIN --libs $DEPLIBS)"
-    CXXFLAGS="$CXXFLAGS $($PKGCONFIGBIN --cflags $DEPLIBS)"
-else
-    for lib in $DEPLIBS; do
-        LIBS="$LIBS -l${lib#lib}"
-    done
-    log_echo "warning: pkg-config or pc files not found, lib detection may be inaccurate."
-fi
 
 log_echo "checking for vapoursynth headers..."
 if $PKGCONFIGBIN --exists vapoursynth 2> /dev/null; then
@@ -214,9 +203,9 @@ if $PKGCONFIGBIN --exists vapoursynth 2> /dev/null; then
 else
     log_echo "warning: pkg-config or pc files not found, header detection may be inaccurate."
 fi
-if ! cc_check "$CXXFLAGS $VSCFLAGS" "$LDFLAGS $LIBS $XLIBS" "vapoursynth/VapourSynth.h" "getVapourSynthAPI;" ; then
+if ! cc_check "$CXXFLAGS $VSCFLAGS" "$LDFLAGS $LIBS $XLIBS" "VapourSynth.h" "getVapourSynthAPI;" ; then
     log_echo "error: vapoursynth checking failed."
-    error_exit "vapoursynth/VapourSynth.h might not be installed."
+    error_exit "VapourSynth.h might not be installed."
 fi
 
 LDFLAGS="$SOFLAGS $LDFLAGS"
