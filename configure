@@ -16,7 +16,8 @@ options:
   --install=PATH           set dir for install library
                            [/usr/local/lib/vapoursynth]
 
-  --clang, --gcc           compile by g++ or clang++ [clang]
+  --cxx=CXX                use a defined compiler for compilation and linking
+                           [g++]
   --target-os=OS           build programs to run on OS [auto]
   --cross-prefix=PREFIX    use PREFIX for compilation tools
   --sysroot=SYSROOT        root of cross-build tree
@@ -38,6 +39,7 @@ error_exit()
     echo error: $1
     exit 1
 }
+
 log_echo()
 {
     echo $1
@@ -79,12 +81,9 @@ TARGET_OS=""
 CROSS=""
 
 SYSROOT=""
-CXX="clang++"
-LD="clang++"
+CXX="g++"
+LD="g++"
 STRIP="strip"
-
-test -n "$(which $CXX 2> /dev/null)" || CXX="g++"
-test -n "$(which $LD 2> /dev/null)" || LD="g++"
 
 DEBUG=""
 
@@ -107,10 +106,11 @@ for opt; do
             ;;
         --enable-debug)
             DEBUG="enabled"
-            XCXXFLAGS="$XCXXFLAGS -g"
+            CXXFLAGS="$CXXFLAGS -g"
             ;;
         --cxx=*)
             CXX="$optarg"
+            LD="$optarg"
             ;;
         --extra-cxxflags=*)
             XCXXFLAGS="$optarg"
@@ -130,14 +130,6 @@ for opt; do
         --sysroot=*)
             CXXFLAGS="$CXXFLAGS --sysroot=$optarg"
             LDFLAGS="$LDFLAGS --sysroot=$optarg"
-            ;;
-        --gcc)
-            CXX="g++"
-            LD="g++"
-            ;;
-        --clang)
-            CXX="clang++"
-            LD="clang++"
             ;;
         --target=*)
             TARGET="-m$optarg"
@@ -186,8 +178,8 @@ log_echo "CXXFLAGS/LDFLAGS checking..."
 if ! cc_check "$CXXFLAGS" "$LDFLAGS"; then
     error_exit "invalid CXXFLAGS/LDFLAGS"
 fi
-if cc_check "-Os -ffast-math $CXXFLAGS" "$LDFLAGS"; then
-    CXXFLAGS="-Os -ffast-math $CXXFLAGS"
+if cc_check "-O2 -ffast-math $CXXFLAGS" "$LDFLAGS"; then
+    CXXFLAGS="-O2 -ffast-math $CXXFLAGS"
 fi
 if cc_check "$CXXFLAGS" "$LDFLAGS"; then
     CXXFLAGS="$CXXFLAGS"
@@ -210,6 +202,7 @@ fi
 
 LDFLAGS="$SOFLAGS $LDFLAGS"
 LIBS="$LIBS $XLIBS"
+CXXFLAGS="$CXXFLAGS $VSCFLAGS"
 
 
 cat >> config.mak << EOF
