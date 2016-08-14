@@ -33,7 +33,7 @@ For processing in YUV444 and RGB, the filtering results are different. The inten
 ### Usage
 
 ```python
-retinex.MSRCP(clip input, float[] sigmaS=[25,80,250], float lower_thr=0.001, float upper_thr=0.001, bool fulls, bool fulld=fulls, float chroma_protect=1.2)
+retinex.MSRCP(clip input, float[] sigma=[25,80,250], float lower_thr=0.001, float upper_thr=0.001, bool fulls, bool fulld=fulls, float chroma_protect=1.2)
 ```
 
 - input:<br />
@@ -108,7 +108,7 @@ This function only accept 8-16bit integer RGB input.
 ### Usage
 
 ```python
-retinex.MSRCR(clip input, float[] sigmaS=[25,80,250], float lower_thr=0.001, float upper_thr=0.001, bool fulls=True, bool fulld=fulls, float restore=125)
+retinex.MSRCR(clip input, float[] sigma=[25,80,250], float lower_thr=0.001, float upper_thr=0.001, bool fulls=True, bool fulld=fulls, float restore=125)
 ```
 
 - input:<br />
