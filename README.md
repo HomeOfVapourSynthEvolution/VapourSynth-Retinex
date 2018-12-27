@@ -159,3 +159,11 @@ i = core.lsmas.LWLibavSource(r'Image.png')
 i = core.fmtc.bitdepth(i, bits=16)
 i = core.retinex.MSRCR(i)
 ```
+
+
+## Compilation
+
+```
+meson build
+ninja -C build
+```
