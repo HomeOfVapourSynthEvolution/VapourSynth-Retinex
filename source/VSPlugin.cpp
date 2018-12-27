@@ -26,7 +26,7 @@
 
 VS_EXTERNAL_API(void) VapourSynthPluginInit(VSConfigPlugin configFunc, VSRegisterFunction registerFunc, VSPlugin *plugin)
 {
-    configFunc("AOJIAO_mawen1250->AOwen.Retina_Cortex->Retinex", "retinex",
+    configFunc("com.vapoursynth.retinex", "retinex",
         "Implementation of Retinex algorithm for VapourSynth.",
         VAPOURSYNTH_API_VERSION, 1, plugin);
 
