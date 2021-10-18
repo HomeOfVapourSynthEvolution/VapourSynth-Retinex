@@ -49,7 +49,7 @@ class MSRData
     : public VSData
 {
 public:
-    std::vector<double> sigma = MSRDefault.sigma;
+    std::vector<double> sigma;
 
     double lower_thr = MSRDefault.lower_thr;
     double upper_thr = MSRDefault.upper_thr;
