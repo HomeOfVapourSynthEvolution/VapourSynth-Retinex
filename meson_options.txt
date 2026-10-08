@@ -1,0 +1,2 @@
+option('python_package', type : 'boolean', value : false,
+  description : 'Install the plugin into the vapoursynth_retinex Python package (used for building wheels)')

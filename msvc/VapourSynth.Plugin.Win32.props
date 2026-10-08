@@ -1,18 +1,21 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ImportGroup Label="PropertySheets" />
-  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Label="UserMacros">
+    <!-- Directory containing VapourSynth4.h and VSHelper4.h; override with /p:VapourSynthIncludeDir=... -->
+    <VapourSynthIncludeDir Condition="'$(VapourSynthIncludeDir)'==''">C:\Program Files\VapourSynth\sdk\include\vapoursynth</VapourSynthIncludeDir>
+  </PropertyGroup>
   <PropertyGroup>
     <TargetExt>.dll</TargetExt>
   </PropertyGroup>
   <ItemDefinitionGroup>
-    <Link>
-      <AdditionalLibraryDirectories>C:\Program Files (x86)\VapourSynth\sdk\lib32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>vapoursynth.lib;vsscript.lib;%(AdditionalDependencies)</AdditionalDependencies>
-    </Link>
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Program Files (x86)\VapourSynth\sdk\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VapourSynthIncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <BuildMacro Include="VapourSynthIncludeDir">
+      <Value>$(VapourSynthIncludeDir)</Value>
+    </BuildMacro>
+  </ItemGroup>
 </Project>

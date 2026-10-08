@@ -51,17 +51,18 @@ public:
 
     virtual int arguments_process(const VSMap *in, VSMap *out)
     {
-        MSRData::arguments_process(in, out);
+        if (MSRData::arguments_process(in, out))
+            return 1;
 
         int error;
 
-        if (vi->format->colorFamily != cmRGB)
+        if (vi->format.colorFamily != cfRGB)
         {
             setError(out, "Invalid input clip, only RGB format input supported");
             return 1;
         }
 
-        restore = vsapi->propGetFloat(in, "restore", 0, &error);
+        restore = vsapi->mapGetFloat(in, "restore", 0, &error);
         if (error)
             restore = MSRCRDefault.restore;
         if (restore < 0)

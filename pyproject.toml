@@ -1,0 +1,18 @@
+[build-system]
+build-backend = 'mesonpy'
+requires = ['meson-python>=0.15']
+
+[project]
+name = 'vapoursynth-retinex'
+dynamic = ['version']
+description = 'Retinex (MSRCP/MSRCR) plugin for VapourSynth (API 4)'
+readme = 'README.md'
+requires-python = '>=3.8'
+license = { file = 'LICENSE' }
+dependencies = ['VapourSynth']
+
+[tool.meson-python.args]
+setup = ['-Dpython_package=true']
+
+[tool.meson-python.wheel]
+exclude = ['*/*.dll.a', '*/*.lib']

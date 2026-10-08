@@ -1,0 +1,93 @@
+name: Build wheels
+
+on:
+  push:
+    branches: [master, main]
+    tags: ['v*']
+    paths-ignore: ['**.md']
+  pull_request:
+    paths-ignore: ['**.md']
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Windows x64, os: windows-latest, archs: AMD64 }
+          - { name: Linux x86_64, os: ubuntu-latest, archs: x86_64 }
+          - { name: macOS arm64, os: macos-14, archs: arm64 }
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build wheel
+        uses: pypa/cibuildwheel@v4.3
+        env:
+          # The plugin only uses the VapourSynth C API, so one interpreter is enough;
+          # the wheel is re-tagged to py3-none below.
+          CIBW_BUILD: cp312-*
+          CIBW_SKIP: '*-musllinux*'
+          CIBW_ARCHS: ${{ matrix.archs }}
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
+          MACOSX_DEPLOYMENT_TARGET: '11.0'
+          CIBW_REPAIR_WHEEL_COMMAND_MACOS: ''
+          # The runtime is linked statically (b_vscrt=mt), so delvewheel (default since cibuildwheel 4) has nothing to bundle.
+          CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: ''
+          # Meson would otherwise pick MinGW g++ on the runner, whose DLL needs libstdc++/libgcc
+          # at load time. Build with MSVC and link the runtime statically instead.
+          CIBW_CONFIG_SETTINGS_WINDOWS: setup-args=--vsenv setup-args=-Db_vscrt=mt
+          CIBW_TEST_COMMAND: python -c "from vapoursynth import core; core.retinex.MSRCP"
+
+      - name: Check Windows wheel does not import the VC runtime
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          python -m pip install pefile
+          python - <<'EOF'
+          import glob, re, sys, zipfile, pefile
+          bad = re.compile(r'^(vcruntime|msvcp|concrt|ucrtbase|api-ms-win-crt)', re.I)
+          failed = False
+          for whl in glob.glob('wheelhouse/*.whl'):
+              with zipfile.ZipFile(whl) as z:
+                  for name in z.namelist():
+                      if not name.endswith('.dll'):
+                          continue
+                      pe = pefile.PE(data=z.read(name))
+                      imports = sorted({e.dll.decode() for e in pe.DIRECTORY_ENTRY_IMPORT})
+                      print(name, imports)
+                      failed |= any(bad.match(i) for i in imports)
+          sys.exit(1 if failed else 0)
+          EOF
+
+      - name: Re-tag wheel as Python-independent
+        shell: bash
+        run: |
+          python -m pip install wheel
+          python -m wheel tags --python-tag py3 --abi-tag none --remove wheelhouse/*.whl
+          ls wheelhouse
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: wheel-${{ matrix.os }}
+          path: wheelhouse/*.whl
+
+  release:
+    name: GitHub release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: wheel-*
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v3
+        with:
+          files: dist/*.whl
+          generate_release_notes: true

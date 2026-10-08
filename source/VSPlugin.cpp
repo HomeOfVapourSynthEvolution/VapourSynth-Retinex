@@ -24,14 +24,14 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-VS_EXTERNAL_API(void) VapourSynthPluginInit(VSConfigPlugin configFunc, VSRegisterFunction registerFunc, VSPlugin *plugin)
+VS_EXTERNAL_API(void) VapourSynthPluginInit2(VSPlugin *plugin, const VSPLUGINAPI *vspapi)
 {
-    configFunc("com.vapoursynth.retinex", "retinex",
+    vspapi->configPlugin("com.vapoursynth.retinex", "retinex",
         "Implementation of Retinex algorithm for VapourSynth.",
-        VAPOURSYNTH_API_VERSION, 1, plugin);
+        VS_MAKE_VERSION(5, 0), VAPOURSYNTH_API_VERSION, 0, plugin);
 
-    registerFunc("MSRCP", "input:clip;sigma:float[]:opt;lower_thr:float:opt;upper_thr:float:opt;fulls:int:opt;fulld:int:opt;chroma_protect:float:opt", MSRCPCreate, nullptr, plugin);
-    registerFunc("MSRCR", "input:clip;sigma:float[]:opt;lower_thr:float:opt;upper_thr:float:opt;fulls:int:opt;fulld:int:opt;restore:float:opt", MSRCRCreate, nullptr, plugin);
+    vspapi->registerFunction("MSRCP", "input:vnode;sigma:float[]:opt;lower_thr:float:opt;upper_thr:float:opt;fulls:int:opt;fulld:int:opt;chroma_protect:float:opt", "clip:vnode", MSRCPCreate, nullptr, plugin);
+    vspapi->registerFunction("MSRCR", "input:vnode;sigma:float[]:opt;lower_thr:float:opt;upper_thr:float:opt;fulls:int:opt;fulld:int:opt;restore:float:opt", "clip:vnode", MSRCRCreate, nullptr, plugin);
 }
 
 

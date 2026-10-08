@@ -23,16 +23,9 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-void VS_CC MSRCPInit(VSMap *in, VSMap *out, void **instanceData, VSNode *node, VSCore *core, const VSAPI *vsapi)
+static const VSFrame *VS_CC MSRCPGetFrame(int n, int activationReason, void *instanceData, void **frameData, VSFrameContext *frameCtx, VSCore *core, const VSAPI *vsapi)
 {
-    MSRCPData *d = reinterpret_cast<MSRCPData *>(*instanceData);
-
-    vsapi->setVideoInfo(d->vi, 1, node);
-}
-
-const VSFrameRef *VS_CC MSRCPGetFrame(int n, int activationReason, void **instanceData, void **frameData, VSFrameContext *frameCtx, VSCore *core, const VSAPI *vsapi)
-{
-    const MSRCPData *d = reinterpret_cast<MSRCPData *>(*instanceData);
+    const MSRCPData *d = reinterpret_cast<const MSRCPData *>(instanceData);
 
     if (activationReason == arInitial)
     {
@@ -48,7 +41,7 @@ const VSFrameRef *VS_CC MSRCPGetFrame(int n, int activationReason, void **instan
     return nullptr;
 }
 
-void VS_CC MSRCPFree(void *instanceData, VSCore *core, const VSAPI *vsapi)
+static void VS_CC MSRCPFree(void *instanceData, VSCore *core, const VSAPI *vsapi)
 {
     MSRCPData *d = reinterpret_cast<MSRCPData *>(instanceData);
 
@@ -70,7 +63,8 @@ void VS_CC MSRCPCreate(const VSMap *in, VSMap *out, void *userData, VSCore *core
     }
 
     // Create filter
-    vsapi->createFilter(in, out, "MSRCP", MSRCPInit, MSRCPGetFrame, MSRCPFree, fmParallel, 0, d, core);
+    VSFilterDependency deps[] = { { d->node, rpStrictSpatial } };
+    vsapi->createVideoFilter(out, "MSRCP", d->vi, MSRCPGetFrame, MSRCPFree, fmParallel, deps, 1, d, core);
 }
 
 
